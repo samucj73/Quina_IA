@@ -207,13 +207,28 @@ st.header("📊 Estatísticas Agregadas")
 st.write(resumo)
 
 # ===================== ETAPA 5 =====================
+# ===================== ETAPA 5 =====================
 st.header("🎟️ Geração Inteligente de Cartões")
 
-num_cartoes = st.slider("Quantos cartões deseja gerar?", 1, 10, 5)
-cartoes = gerar_cartoes_inteligentes(df_padroes, quantidade=num_cartoes)
+st.markdown("Geração baseada nas análises anteriores: frequência, linhas, colunas e faixas numéricas.")
 
-for i, cartao in enumerate(cartoes, 1):
-    st.write(f"Cartão {i}: 🎯", sorted(cartao))
+col1, col2 = st.columns([1, 3])
+with col1:
+    num_cartoes = st.number_input("Quantidade de cartões:", min_value=1, max_value=20, value=5)
+with col2:
+    gerar = st.button("🎲 Gerar Cartões")
+
+if gerar:
+    cartoes = gerar_cartoes_inteligentes(df_padroes, quantidade=num_cartoes)
+    
+    st.markdown("### 📋 Cartões Gerados")
+    for i, cartao in enumerate(cartoes, 1):
+        dezenas_formatadas = "  |  ".join(f"{dez:02d}" for dez in sorted(cartao))
+        st.markdown(f"""
+        <div style='padding: 10px; background-color: #f0f2f6; border-radius: 8px; margin-bottom: 8px; font-size: 18px; text-align: center;'>
+            <b>Cartão {i}</b>: 🎯 {dezenas_formatadas}
+        </div>
+        """, unsafe_allow_html=True)
 
 # ======== RODAPÉ ========
 def rodape():
