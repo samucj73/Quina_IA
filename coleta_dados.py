@@ -27,7 +27,7 @@ def fetch_concurso(numero):
         return None
 
 @st.cache_data(show_spinner="🔄 Carregando concursos da Quina...")
-def obter_concursos_ate(limit=2500):
+def obter_concursos_ate(limit=15):
     concursos = []
     # Tenta pegar o último concurso manualmente
     ultimo = 6740  # atualize conforme necessário ou use lógica automática
