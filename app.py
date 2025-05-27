@@ -243,19 +243,26 @@ if st.button("📋 Conferir Cartões"):
             dezenas_resultado = set(linha['dezenas'])
             st.markdown(f"### Concurso {linha['concurso']} ({linha['data']}) - Resultado: `{sorted(dezenas_resultado)}`")
 
+            houve_premio = False
             for i, cartao in enumerate(cartoes, 1):
                 acertos = len(set(cartao) & dezenas_resultado)
-                status = "❌ Nenhum prêmio"
-                if acertos == 5:
-                    status = "🏆 **QUINA!**"
-                elif acertos == 4:
-                    status = "🎯 **QUADRA**"
-                elif acertos == 3:
-                    status = "✅ **TERNO**"
-                elif acertos == 2:
-                    status = "☑️ **DUQUE**"
-                dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
-                st.markdown(f"- **Cartão {i}**: `{dezenas_formatadas}` → **{acertos} acertos** → {status}")
+                
+                if acertos >= 2:  # Exibe apenas prêmios: duque, terno, quadra, quina
+                    houve_premio = True
+                    if acertos == 5:
+                        status = "🏆 **QUINA!**"
+                    elif acertos == 4:
+                        status = "🎯 **QUADRA**"
+                    elif acertos == 3:
+                        status = "✅ **TERNO**"
+                    else:  # acertos == 2
+                        status = "💰 **DUQUE**"
+                    dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
+                    st.markdown(f"- **Cartão {i}**: `{dezenas_formatadas}` → **{acertos} acertos** → {status}")
+
+            if not houve_premio:
+                st.markdown("_Nenhum cartão premiado neste concurso._")
+
 
 def rodape():
     st.markdown("""
