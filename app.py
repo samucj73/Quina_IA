@@ -1,23 +1,29 @@
-
 import streamlit as st
 import pandas as pd
 from collections import Counter
 from itertools import combinations
-import random
 import requests
+from time import sleep
 
 # ==================== FUNÇÕES ====================
 
-@st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner="🔄 Coletando concursos da Quina...")
 def obter_todos_concursos():
-    url = "https://loteriascaixa-api.herokuapp.com/api/quina/all"
-    resposta = requests.get(url)
-    resposta.raise_for_status()
-    dados = resposta.json()
     concursos = []
-    for c in dados:
-        dezenas = list(map(int, c['dezenas'].split()))
-        concursos.append({'concurso': int(c['concurso']), 'dezenas': dezenas})
+    total = 2500  # limite máximo desejado
+    for n in range(1, total + 1):
+        url = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/quina/{n}"
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code != 200:
+                continue
+            dados = r.json()
+            dezenas = list(map(int, dados['listaDezenas']))
+            concursos.append({'concurso': int(dados['numero']), 'dezenas': dezenas})
+            sleep(0.1)
+        except Exception:
+            continue
     df = pd.DataFrame(concursos).sort_values('concurso').reset_index(drop=True)
     return df
 
@@ -144,9 +150,6 @@ st.title("🔍 Análise Inteligente da Quina")
 # ===================== ETAPA 1 =====================
 st.header("📥 Coleta de Dados")
 
-st.markdown("🔄 Atualizando concursos diretamente da API da Caixa...")
-
-
 opcoes_concursos = [10, 50, 100, 200, 500, 1000, 1500, 2000, 2500]
 quantidade_concursos = st.select_slider(
     "Escolha a quantidade de concursos a analisar:",
@@ -200,7 +203,6 @@ with st.expander("🧬 Saltos entre dezenas consecutivas"):
     st.write(analisar_saltos(df_usado))
 
 resumo = estatisticas_agregadas(df_padroes)
-
 
 # ===================== ETAPA 4 =====================
 st.header("📊 Estatísticas Agregadas")
