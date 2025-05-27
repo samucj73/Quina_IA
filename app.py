@@ -7,23 +7,26 @@ from time import sleep
 
 # ==================== FUNÇÕES ====================
 
-@st.cache_data(show_spinner="🔄 Coletando concursos da Quina...")
-def obter_todos_concursos():
+@st.cache_data(show_spinner=True)
+def obter_todos_concursos(qtd):
     concursos = []
-    total = 2500  # limite máximo desejado
-    for n in range(1, total + 1):
-        url = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/quina/{n}"
-        headers = {'User-Agent': 'Mozilla/5.0'}
+    # Você pode buscar o último concurso dinamicamente, aqui fixo por simplicidade
+    ultimo_concurso = 6740
+    inicio = max(1, ultimo_concurso - qtd + 1)
+    progresso = st.progress(0)
+    
+    for i, n in enumerate(range(inicio, ultimo_concurso + 1), 1):
         try:
-            r = requests.get(url, headers=headers, timeout=10)
-            if r.status_code != 200:
-                continue
-            dados = r.json()
+            url = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/quina/{n}"
+            resposta = requests.get(url, timeout=10)
+            resposta.raise_for_status()
+            dados = resposta.json()
             dezenas = list(map(int, dados['listaDezenas']))
-            concursos.append({'concurso': int(dados['numero']), 'dezenas': dezenas})
-            sleep(0.1)
-        except Exception:
-            continue
+            concursos.append({'concurso': dados['numero'], 'dezenas': dezenas, 'data': dados['dataApuracao']})
+        except Exception as e:
+            st.warning(f"Erro ao baixar concurso {n}: {e}")
+        progresso.progress(i / qtd)
+        sleep(0.15)  # evita sobrecarga da API
     df = pd.DataFrame(concursos).sort_values('concurso').reset_index(drop=True)
     return df
 
@@ -52,19 +55,6 @@ def calcular_estatisticas(df):
         repetidas.append(len(atual & anterior))
     df['repetidas'] = repetidas
     return df
-
-def calcular_frequencia_global(df):
-    todas_dezenas = [dezena for lista in df['dezenas'] for dezena in lista]
-    frequencia = Counter(todas_dezenas)
-    freq_ordenada = dict(sorted(frequencia.items()))
-    return freq_ordenada
-
-def combinacoes_mais_comuns(df, tamanho=2, top=10):
-    todas = []
-    for dezenas in df['dezenas']:
-        todas.extend(combinations(sorted(dezenas), tamanho))
-    contagem = Counter(todas)
-    return contagem.most_common(top)
 
 def analisar_saltos(df):
     saltos = []
@@ -147,7 +137,6 @@ st.set_page_config(page_title="Quina Inteligente", layout="centered")
 
 st.title("🔍 Análise Inteligente da Quina")
 
-# ===================== ETAPA 1 =====================
 st.header("📥 Coleta de Dados")
 
 opcoes_concursos = [10, 50, 100, 200, 500, 1000, 1500, 2000, 2500]
@@ -158,12 +147,18 @@ quantidade_concursos = st.select_slider(
     help="Quanto mais concursos, mais abrangente a análise (pode demorar um pouco)"
 )
 
-df_todos = obter_todos_concursos()
-df_usado = df_todos.tail(quantidade_concursos).reset_index(drop=True)
+with st.spinner("🔄 Coletando concursos da Quina..."):
+    df_todos = obter_todos_concursos(quantidade_concursos)
 
-df_estatisticas = calcular_estatisticas(df_usado)
+if df_todos.empty:
+    st.error("Nenhum concurso foi carregado. Tente novamente mais tarde.")
+    st.stop()
 
-# ===================== ETAPA 2 =====================
+df_estatisticas = calcular_estatisticas(df_todos)
+df_padroes = analisar_padroes_ocultos(df_estatisticas)
+
+# ===================== ANÁLISES =====================
+
 st.header("📈 Análise Estatística")
 
 with st.expander("➕ Soma das dezenas"):
@@ -178,37 +173,39 @@ with st.expander("⚖️ Quantidade de Pares e Ímpares"):
 with st.expander("🧭 Distribuição por Quadrantes"):
     st.dataframe(df_estatisticas[['concurso', 'q1', 'q2', 'q3', 'q4']])
 
-
-df_padroes = analisar_padroes_ocultos(df_estatisticas)
-
-# ===================== ETAPA 3 =====================
 st.header("🔍 Padrões Ocultos")
 
 with st.expander("🔢 Faixas Numéricas (baixa, média, alta)"):
     st.dataframe(df_padroes[['concurso', 'faixa_baixa', 'faixa_media', 'faixa_alta']])
 
 with st.expander("🧮 Colunas mais sorteadas (mod 10)"):
-    st.dataframe(df_padroes[[f'col_{i}' for i in range(10)]].sum().sort_values(ascending=False))
+    colunas_sum = df_padroes[[f'col_{i}' for i in range(10)]].sum().sort_values(ascending=False)
+    st.dataframe(colunas_sum)
 
 with st.expander("📏 Linhas mais frequentes (1–80 por blocos de 10)"):
-    st.dataframe(df_padroes[[f'linha_{i+1}' for i in range(8)]].sum().sort_values(ascending=False))
+    linhas_sum = df_padroes[[f'linha_{i+1}' for i in range(8)]].sum().sort_values(ascending=False)
+    st.dataframe(linhas_sum)
 
 with st.expander("🎯 Sequências consecutivas nas dezenas"):
     st.bar_chart(df_padroes['sequencias'].value_counts().sort_index())
 
+#with st.expander("↔️ Estatísticas de amplitude, média, mínimo e máximo"):
+    #st.dataframe(df_padroes[['concurso', 'min', 'max
+                             
 with st.expander("↔️ Estatísticas de amplitude, média, mínimo e máximo"):
     st.dataframe(df_padroes[['concurso', 'min', 'max', 'media', 'amplitude']])
 
 with st.expander("🧬 Saltos entre dezenas consecutivas"):
-    st.write(analisar_saltos(df_usado))
+    st.write(analisar_saltos(df_todos))
 
 resumo = estatisticas_agregadas(df_padroes)
 
-# ===================== ETAPA 4 =====================
+# ===================== ESTATÍSTICAS AGREGADAS =====================
 st.header("📊 Estatísticas Agregadas")
 
 st.write(resumo)
 
+# ======== RODAPÉ ========
 def rodape():
     st.markdown("""
         <hr style="margin-top: 50px;"/>
@@ -220,3 +217,5 @@ def rodape():
     """, unsafe_allow_html=True)
 
 rodape()
+
+                             
