@@ -4,6 +4,7 @@ from collections import Counter
 from itertools import combinations
 import requests
 from time import sleep
+from gerador_cartoes import gerar_cartoes_inteligentes
 
 # ==================== FUNÇÕES ====================
 
@@ -204,6 +205,15 @@ resumo = estatisticas_agregadas(df_padroes)
 st.header("📊 Estatísticas Agregadas")
 
 st.write(resumo)
+
+# ===================== ETAPA 5 =====================
+st.header("🎟️ Geração Inteligente de Cartões")
+
+num_cartoes = st.slider("Quantos cartões deseja gerar?", 1, 10, 5)
+cartoes = gerar_cartoes_inteligentes(df_padroes, quantidade=num_cartoes)
+
+for i, cartao in enumerate(cartoes, 1):
+    st.write(f"Cartão {i}: 🎯", sorted(cartao))
 
 # ======== RODAPÉ ========
 def rodape():
