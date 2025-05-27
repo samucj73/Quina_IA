@@ -1,70 +1,41 @@
 import requests
-import time
 import pandas as pd
-from tqdm import tqdm
+import streamlit as st
+from time import sleep
 
-# URLs
-LATEST_URL = "https://loteriascaixa-api.herokuapp.com/api/quina/latest"
 BASE_URL = "https://loteriascaixa-api.herokuapp.com/api/quina/{}"
+LATEST_URL = "https://loteriascaixa-api.herokuapp.com/api/quina/latest"
 
-# Obter número do último concurso
-def get_latest_concurso():
+def obter_ultimo_concurso():
     try:
-        r = requests.get(LATEST_URL, timeout=5)
-        r.raise_for_status()
-        return r.json()["concurso"]
-    except Exception as e:
-        print(f"[Erro ao buscar último concurso] {e}")
+        resposta = requests.get(LATEST_URL, timeout=10)
+        resposta.raise_for_status()
+        return resposta.json()["concurso"]
+    except requests.exceptions.RequestException as e:
+        st.error("Erro ao buscar o último concurso.")
+        st.exception(e)
         return None
 
-# Buscar concurso individual
-def fetch_concurso(numero):
-    try:
-        r = requests.get(BASE_URL.format(numero), timeout=5)
-        r.raise_for_status()
-        return r.json()
-    except Exception as e:
-        print(f"[Falha no concurso {numero}] {e}")
-        return None
-
-# Coleta todos os concursos até o último disponível
-def carregar_todos_concursos():
+@st.cache_data(show_spinner="🔄 Carregando concursos da Quina...")
+def obter_todos_concursos():
     concursos = []
-    ultimo = get_latest_concurso()
+    ultimo = obter_ultimo_concurso()
     if not ultimo:
-        print("Não foi possível obter o último concurso.")
         return []
 
-    for n in tqdm(range(1, ultimo + 1), desc="Baixando concursos"):
-        dados = fetch_concurso(n)
-        if dados:
-            concursos.append(dados)
-        time.sleep(0.2)  # Prevenir bloqueio por excesso de requisições
-
-    return concursos
-
-# Converte lista de concursos em DataFrame com colunas úteis
-def concursos_para_dataframe(concursos):
-    registros = []
-    for c in concursos:
+    for n in range(1, ultimo + 1):
         try:
-            dezenas = sorted(int(d) for d in c['dezenas'])
-            registros.append({
-                'concurso': c['concurso'],
-                'data': c['data'],
-                'dezenas': dezenas,
-                'acumulou': c.get('acumulou', False),
-                'premiacoes': c.get('premiacoes', [])
+            resposta = requests.get(BASE_URL.format(n), timeout=10)
+            resposta.raise_for_status()
+            dados = resposta.json()
+            concursos.append({
+                'concurso': dados['concurso'],
+                'data': dados['data'],
+                'dezenas': list(map(int, dados['dezenas']))
             })
-        except Exception as e:
-            print(f"[Erro ao processar concurso {c.get('concurso')}] {e}")
+            sleep(0.15)  # prevenir bloqueio da API
+        except requests.exceptions.RequestException as e:
+            st.warning(f"Erro ao buscar concurso {n}: {e}")
             continue
 
-    return pd.DataFrame(registros)
-
-# ⏯️ Execução
-if __name__ == "__main__":
-    concursos = carregar_todos_concursos()
-    df_concursos = concursos_para_dataframe(concursos)
-
-    print(df_concursos.head())
+    return pd.DataFrame(concursos)
