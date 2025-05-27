@@ -206,47 +206,56 @@ st.write(resumo)
 
 st.header("🎲 Gerador Inteligente de Cartões")
 
-qtd_cartoes = st.slider("Quantidade de cartões a gerar:", 1, 20, 5)
+qtd_cartoes = st.slider("Quantidade de cartões a gerar:", 1, 120, 50)
 
 if st.button("🧠 Gerar Cartões Inteligentes"):
     st.subheader("🃏 Cartões Gerados:")
-    freq = calcular_frequencia_global(df_padroes)
-    dezenas_ordenadas = sorted(freq.items(), key=lambda x: x[1], reverse=True)
-    top_dezenas = [dez for dez, _ in dezenas_ordenadas[:40]]
+
+    freq = df_padroes['dezenas'].explode().value_counts()
+    top_dezenas = freq.nlargest(40).index.tolist()
+
     cartoes = []
     for _ in range(qtd_cartoes):
         cartao = sorted(random.sample(top_dezenas, 5))
         cartoes.append(cartao)
+
+    st.session_state['cartoes'] = cartoes  # Armazenar para conferência
+
     for i, cartao in enumerate(cartoes, 1):
         dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
         st.markdown(f"**Cartão {i}:** `{dezenas_formatadas}`")
 
 # ===================== CONFERÊNCIA DE CARTÕES =====================
+
 st.header("✅ Conferência de Cartões Gerados")
 
 qtd_ultimos = st.slider("Quantos concursos recentes deseja conferir?", 1, 10, 3)
 
 if st.button("📋 Conferir Cartões"):
-    concursos_para_conferir = df_todos.tail(qtd_ultimos).reset_index(drop=True)
-    st.subheader(f"Verificando contra os últimos {qtd_ultimos} concursos:")
+    if 'cartoes' not in st.session_state or not st.session_state['cartoes']:
+        st.warning("⚠️ Nenhum cartão gerado ainda. Gere os cartões primeiro.")
+    else:
+        cartoes = st.session_state['cartoes']
+        concursos_para_conferir = df_todos.tail(qtd_ultimos).reset_index(drop=True)
+        st.subheader(f"Verificando contra os últimos {qtd_ultimos} concursos:")
 
-    for idx, linha in concursos_para_conferir.iterrows():
-        dezenas_resultado = set(linha['dezenas'])
-        st.markdown(f"### Concurso {linha['concurso']} ({linha['data']}) - Resultado: `{sorted(dezenas_resultado)}`")
+        for idx, linha in concursos_para_conferir.iterrows():
+            dezenas_resultado = set(linha['dezenas'])
+            st.markdown(f"### Concurso {linha['concurso']} ({linha['data']}) - Resultado: `{sorted(dezenas_resultado)}`")
 
-        for i, cartao in enumerate(cartoes, 1):
-            acertos = len(set(cartao) & dezenas_resultado)
-            status = "❌ Nenhum prêmio"
-            if acertos == 5:
-                status = "🏆 **QUINA!**"
-            elif acertos == 4:
-                status = "🎯 **QUADRA**"
-            elif acertos == 3:
-                status = "✅ **TERNO**"
-            elif acertos == 2:
-                status = "☑️ **DUQUE**"
-            dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
-            st.markdown(f"- **Cartão {i}**: `{dezenas_formatadas}` → **{acertos} acertos** → {status}")
+            for i, cartao in enumerate(cartoes, 1):
+                acertos = len(set(cartao) & dezenas_resultado)
+                status = "❌ Nenhum prêmio"
+                if acertos == 5:
+                    status = "🏆 **QUINA!**"
+                elif acertos == 4:
+                    status = "🎯 **QUADRA**"
+                elif acertos == 3:
+                    status = "✅ **TERNO**"
+                elif acertos == 2:
+                    status = "☑️ **DUQUE**"
+                dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
+                st.markdown(f"- **Cartão {i}**: `{dezenas_formatadas}` → **{acertos} acertos** → {status}")
 
 def rodape():
     st.markdown("""
