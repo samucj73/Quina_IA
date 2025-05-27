@@ -1,21 +1,21 @@
+
 import streamlit as st
 import pandas as pd
 from collections import Counter
 from itertools import combinations
 import requests
 from time import sleep
-from gerador_cartoes import gerar_cartoes_inteligentes
+import random
 
 # ==================== FUNÇÕES ====================
 
 @st.cache_data(show_spinner=True)
 def obter_todos_concursos(qtd):
     concursos = []
-    # Você pode buscar o último concurso dinamicamente, aqui fixo por simplicidade
     ultimo_concurso = 6740
     inicio = max(1, ultimo_concurso - qtd + 1)
     progresso = st.progress(0)
-    
+
     for i, n in enumerate(range(inicio, ultimo_concurso + 1), 1):
         try:
             url = f"https://servicebus2.caixa.gov.br/portaldeloterias/api/quina/{n}"
@@ -27,7 +27,7 @@ def obter_todos_concursos(qtd):
         except Exception as e:
             st.warning(f"Erro ao baixar concurso {n}: {e}")
         progresso.progress(i / qtd)
-        sleep(0.15)  # evita sobrecarga da API
+        sleep(0.15)
     df = pd.DataFrame(concursos).sort_values('concurso').reset_index(drop=True)
     return df
 
@@ -132,7 +132,13 @@ def estatisticas_agregadas(df):
     resumo['coluna_mais_frequente'] = coluna_soma.idxmax()
     return resumo
 
-# ==================== INTERFACE STREAMLIT ====================
+def calcular_frequencia_global(df):
+    contagem = Counter()
+    for dezenas in df['dezenas']:
+        contagem.update(dezenas)
+    return contagem
+
+# ===================== INTERFACE =====================
 
 st.set_page_config(page_title="Quina Inteligente", layout="centered")
 
@@ -144,8 +150,7 @@ opcoes_concursos = [10, 50, 100, 200, 500, 1000, 1500, 2000, 2500]
 quantidade_concursos = st.select_slider(
     "Escolha a quantidade de concursos a analisar:",
     options=opcoes_concursos,
-    value=500,
-    help="Quanto mais concursos, mais abrangente a análise (pode demorar um pouco)"
+    value=500
 )
 
 with st.spinner("🔄 Coletando concursos da Quina..."):
@@ -157,8 +162,6 @@ if df_todos.empty:
 
 df_estatisticas = calcular_estatisticas(df_todos)
 df_padroes = analisar_padroes_ocultos(df_estatisticas)
-
-# ===================== ANÁLISES =====================
 
 st.header("📈 Análise Estatística")
 
@@ -176,60 +179,48 @@ with st.expander("🧭 Distribuição por Quadrantes"):
 
 st.header("🔍 Padrões Ocultos")
 
-with st.expander("🔢 Faixas Numéricas (baixa, média, alta)"):
+with st.expander("🔢 Faixas Numéricas"):
     st.dataframe(df_padroes[['concurso', 'faixa_baixa', 'faixa_media', 'faixa_alta']])
 
-with st.expander("🧮 Colunas mais sorteadas (mod 10)"):
+with st.expander("🧮 Colunas mais sorteadas"):
     colunas_sum = df_padroes[[f'col_{i}' for i in range(10)]].sum().sort_values(ascending=False)
     st.dataframe(colunas_sum)
 
-with st.expander("📏 Linhas mais frequentes (1–80 por blocos de 10)"):
+with st.expander("📏 Linhas mais frequentes"):
     linhas_sum = df_padroes[[f'linha_{i+1}' for i in range(8)]].sum().sort_values(ascending=False)
     st.dataframe(linhas_sum)
 
-with st.expander("🎯 Sequências consecutivas nas dezenas"):
+with st.expander("🎯 Sequências consecutivas"):
     st.bar_chart(df_padroes['sequencias'].value_counts().sort_index())
 
-#with st.expander("↔️ Estatísticas de amplitude, média, mínimo e máximo"):
-    #st.dataframe(df_padroes[['concurso', 'min', 'max
-                             
-with st.expander("↔️ Estatísticas de amplitude, média, mínimo e máximo"):
+with st.expander("↔️ Estatísticas diversas"):
     st.dataframe(df_padroes[['concurso', 'min', 'max', 'media', 'amplitude']])
 
-with st.expander("🧬 Saltos entre dezenas consecutivas"):
+with st.expander("🧬 Saltos entre dezenas"):
     st.write(analisar_saltos(df_todos))
 
 resumo = estatisticas_agregadas(df_padroes)
 
-# ===================== ESTATÍSTICAS AGREGADAS =====================
 st.header("📊 Estatísticas Agregadas")
-
 st.write(resumo)
 
-# ===================== ETAPA 5 =====================
-# ===================== ETAPA 5 =====================
-# ===================== ETAPA 5 =====================
 st.header("🎲 Gerador Inteligente de Cartões")
 
 qtd_cartoes = st.slider("Quantidade de cartões a gerar:", 1, 20, 5)
 
 if st.button("🧠 Gerar Cartões Inteligentes"):
     st.subheader("🃏 Cartões Gerados:")
-    
-    # Ponderar dezenas por frequência
-    freq = calcular_frequencia_global(df_usado)
+    freq = calcular_frequencia_global(df_padroes)
     dezenas_ordenadas = sorted(freq.items(), key=lambda x: x[1], reverse=True)
-    top_dezenas = [dez for dez, _ in dezenas_ordenadas[:40]]  # usar top 40 mais frequentes
-
+    top_dezenas = [dez for dez, _ in dezenas_ordenadas[:40]]
     cartoes = []
     for _ in range(qtd_cartoes):
         cartao = sorted(random.sample(top_dezenas, 5))
         cartoes.append(cartao)
-
     for i, cartao in enumerate(cartoes, 1):
         dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
         st.markdown(f"**Cartão {i}:** `{dezenas_formatadas}`")
-# ======== RODAPÉ ========
+
 def rodape():
     st.markdown("""
         <hr style="margin-top: 50px;"/>
@@ -241,5 +232,3 @@ def rodape():
     """, unsafe_allow_html=True)
 
 rodape()
-
-                             
