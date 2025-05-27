@@ -138,7 +138,14 @@ def estatisticas_agregadas(df):
 # ==================== INTERFACE STREAMLIT ====================
 
 st.set_page_config(page_title="Quina Inteligente", layout="centered")
+
 st.title("🔍 Análise Inteligente da Quina")
+
+# ===================== ETAPA 1 =====================
+st.header("📥 Coleta de Dados")
+
+st.markdown("🔄 Atualizando concursos diretamente da API da Caixa...")
+
 
 opcoes_concursos = [10, 50, 100, 200, 500, 1000, 1500, 2000, 2500]
 quantidade_concursos = st.select_slider(
@@ -150,11 +157,54 @@ quantidade_concursos = st.select_slider(
 
 df_todos = obter_todos_concursos()
 df_usado = df_todos.tail(quantidade_concursos).reset_index(drop=True)
+
 df_estatisticas = calcular_estatisticas(df_usado)
+
+# ===================== ETAPA 2 =====================
+st.header("📈 Análise Estatística")
+
+with st.expander("➕ Soma das dezenas"):
+    st.line_chart(df_estatisticas['soma'])
+
+with st.expander("♻️ Repetição de dezenas entre concursos"):
+    st.bar_chart(df_estatisticas['repetidas'].value_counts().sort_index())
+
+with st.expander("⚖️ Quantidade de Pares e Ímpares"):
+    st.dataframe(df_estatisticas[['concurso', 'pares', 'ímpares']])
+
+with st.expander("🧭 Distribuição por Quadrantes"):
+    st.dataframe(df_estatisticas[['concurso', 'q1', 'q2', 'q3', 'q4']])
+
+
 df_padroes = analisar_padroes_ocultos(df_estatisticas)
+
+# ===================== ETAPA 3 =====================
+st.header("🔍 Padrões Ocultos")
+
+with st.expander("🔢 Faixas Numéricas (baixa, média, alta)"):
+    st.dataframe(df_padroes[['concurso', 'faixa_baixa', 'faixa_media', 'faixa_alta']])
+
+with st.expander("🧮 Colunas mais sorteadas (mod 10)"):
+    st.dataframe(df_padroes[[f'col_{i}' for i in range(10)]].sum().sort_values(ascending=False))
+
+with st.expander("📏 Linhas mais frequentes (1–80 por blocos de 10)"):
+    st.dataframe(df_padroes[[f'linha_{i+1}' for i in range(8)]].sum().sort_values(ascending=False))
+
+with st.expander("🎯 Sequências consecutivas nas dezenas"):
+    st.bar_chart(df_padroes['sequencias'].value_counts().sort_index())
+
+with st.expander("↔️ Estatísticas de amplitude, média, mínimo e máximo"):
+    st.dataframe(df_padroes[['concurso', 'min', 'max', 'media', 'amplitude']])
+
+with st.expander("🧬 Saltos entre dezenas consecutivas"):
+    st.write(analisar_saltos(df_usado))
+
 resumo = estatisticas_agregadas(df_padroes)
 
-st.subheader("📊 Estatísticas Agregadas")
+
+# ===================== ETAPA 4 =====================
+st.header("📊 Estatísticas Agregadas")
+
 st.write(resumo)
 
 def rodape():
