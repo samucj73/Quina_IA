@@ -208,10 +208,16 @@ st.write(resumo)
 
 # ===================== ETAPA 5 =====================
 # ===================== ETAPA 5 =====================
+# ===================== ETAPA 5 =====================
+st.header("🎲 Gerador Inteligente de Cartões")
+
+qtd_cartoes = st.slider("Quantidade de cartões a gerar:", 1, 20, 5)
+
 if st.button("🧠 Gerar Cartões Inteligentes"):
     st.subheader("🃏 Cartões Gerados:")
-
-    freq = calcular_frequencia_global(df_todos)  # Corrigido aqui
+    
+    # Ponderar dezenas por frequência
+    freq = calcular_frequencia_global(df_usado)
     dezenas_ordenadas = sorted(freq.items(), key=lambda x: x[1], reverse=True)
     top_dezenas = [dez for dez, _ in dezenas_ordenadas[:40]]  # usar top 40 mais frequentes
 
