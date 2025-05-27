@@ -221,6 +221,33 @@ if st.button("🧠 Gerar Cartões Inteligentes"):
         dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
         st.markdown(f"**Cartão {i}:** `{dezenas_formatadas}`")
 
+# ===================== CONFERÊNCIA DE CARTÕES =====================
+st.header("✅ Conferência de Cartões Gerados")
+
+qtd_ultimos = st.slider("Quantos concursos recentes deseja conferir?", 1, 10, 3)
+
+if st.button("📋 Conferir Cartões"):
+    concursos_para_conferir = df_todos.tail(qtd_ultimos).reset_index(drop=True)
+    st.subheader(f"Verificando contra os últimos {qtd_ultimos} concursos:")
+
+    for idx, linha in concursos_para_conferir.iterrows():
+        dezenas_resultado = set(linha['dezenas'])
+        st.markdown(f"### Concurso {linha['concurso']} ({linha['data']}) - Resultado: `{sorted(dezenas_resultado)}`")
+
+        for i, cartao in enumerate(cartoes, 1):
+            acertos = len(set(cartao) & dezenas_resultado)
+            status = "❌ Nenhum prêmio"
+            if acertos == 5:
+                status = "🏆 **QUINA!**"
+            elif acertos == 4:
+                status = "🎯 **QUADRA**"
+            elif acertos == 3:
+                status = "✅ **TERNO**"
+            elif acertos == 2:
+                status = "☑️ **DUQUE**"
+            dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
+            st.markdown(f"- **Cartão {i}**: `{dezenas_formatadas}` → **{acertos} acertos** → {status}")
+
 def rodape():
     st.markdown("""
         <hr style="margin-top: 50px;"/>
