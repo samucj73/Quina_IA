@@ -3,46 +3,47 @@ import pandas as pd
 import streamlit as st
 from time import sleep
 
+# Nova URL da API oficial da Caixa
 BASE_URL = "https://servicebus2.caixa.gov.br/portaldeloterias/api/quina/{}"
-LATEST_URL = "https://servicebus2.caixa.gov.br/portaldeloterias/api/quina"
+HEADERS = {
+    "Accept": "application/json",
+    "User-Agent": "Mozilla/5.0"
+}
 
-def obter_ultimo_concurso():
+def fetch_concurso(numero):
     try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        resposta = requests.get(LATEST_URL, headers=headers, timeout=10)
-        resposta.raise_for_status()
-        dados = resposta.json()
-        return dados["numero"]  # chave do número do último concurso na API oficial
-    except requests.exceptions.RequestException as e:
-        st.error("Erro ao buscar o último concurso na API oficial.")
-        st.exception(e)
+        url = BASE_URL.format(numero)
+        response = requests.get(url, headers=HEADERS, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        dezenas = list(map(int, data["listaDezenas"]))
+        return {
+            "concurso": data["numero"],
+            "data": data["dataApuracao"],
+            "dezenas": dezenas
+        }
+    except Exception as e:
+        st.warning(f"Erro no concurso {numero}: {e}")
         return None
 
 @st.cache_data(show_spinner="🔄 Carregando concursos da Quina...")
-def obter_todos_concursos(limite=2500):
+def obter_concursos_ate(limit=2500):
     concursos = []
-    ultimo = obter_ultimo_concurso()
-    if not ultimo:
-        return pd.DataFrame()  # retorna DF vazio se erro
+    # Tenta pegar o último concurso manualmente
+    ultimo = 6740  # atualize conforme necessário ou use lógica automática
 
-    max_concurso = min(ultimo, limite)
-
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    for n in range(1, max_concurso + 1):
-        try:
-            resposta = requests.get(BASE_URL.format(n), headers=headers, timeout=10)
-            resposta.raise_for_status()
-            dados = resposta.json()
-            dezenas = list(map(int, dados.get("listaDezenas", [])))
-            concursos.append({
-                'concurso': dados.get('numero', n),
-                'data': dados.get('dataApuracao', ''),
-                'dezenas': dezenas
-            })
-            sleep(0.15)  # para não sobrecarregar o servidor
-        except requests.exceptions.RequestException as e:
-            st.warning(f"Erro ao buscar concurso {n}: {e}")
-            continue
+    for n in range(max(1, ultimo - limit + 1), ultimo + 1):
+        resultado = fetch_concurso(n)
+        if resultado:
+            concursos.append(resultado)
+            st.info(f"Concurso {n} carregado")
+        sleep(0.15)  # Para evitar sobrecarga da API
 
     return pd.DataFrame(concursos)
+
+# 🔁 Execução principal
+st.title("🔍 Coleta de Concursos da Quina")
+df_concursos = obter_concursos_ate(2500)
+
+st.success(f"{len(df_concursos)} concursos carregados!")
+st.dataframe(df_concursos)
