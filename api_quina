@@ -1,52 +1,58 @@
 import requests
 import time
+import pandas as pd
 
 # URLs
 LATEST_URL = "https://loteriascaixa-api.herokuapp.com/api/quina/latest"
 BASE_URL = "https://loteriascaixa-api.herokuapp.com/api/quina/{}"
 
+# Obter último concurso
 def get_latest_concurso():
     try:
-        response = requests.get(LATEST_URL)
-        if response.status_code == 200:
-            return response.json()["concurso"]
+        r = requests.get(LATEST_URL)
+        if r.status_code == 200:
+            return r.json()["concurso"]
     except Exception as e:
-        print(f"Erro ao obter o último concurso: {e}")
+        print(f"Erro: {e}")
     return None
 
+# Buscar um concurso específico
 def fetch_concurso(numero):
-    url = BASE_URL.format(numero)
     try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            return response.json()
+        r = requests.get(BASE_URL.format(numero))
+        if r.status_code == 200:
+            return r.json()
     except:
-        pass
-    return None
+        return None
 
-# Lista para armazenar todos os concursos
-concursos_quina = []
-
+# Carregar todos os concursos em uma lista
 def carregar_todos_concursos():
+    concursos = []
     ultimo = get_latest_concurso()
-    if not ultimo:
-        print("Erro ao buscar o último concurso.")
-        return
-
-    print(f"🔄 Baixando concursos de 1 até {ultimo}...")
-
-    for numero in range(1, ultimo + 1):
-        dados = fetch_concurso(numero)
+    for n in range(1, ultimo + 1):
+        dados = fetch_concurso(n)
         if dados:
-            concursos_quina.append(dados)
-            print(f"✅ Concurso {numero} capturado.")
+            concursos.append(dados)
+            print(f"Concurso {n} capturado")
         else:
-            print(f"❌ Concurso {numero} falhou ou não existe.")
-        time.sleep(0.2)  # respeita o servidor
+            print(f"Concurso {n} falhou")
+        time.sleep(0.2)
+    return concursos
 
-    print(f"✔️ {len(concursos_quina)} concursos carregados na variável `concursos_quina`.")
+# Converter concursos para DataFrame
+def concursos_para_dataframe(concursos):
+    registros = []
+    for c in concursos:
+        dezenas = list(map(int, c['dezenas']))
+        registros.append({
+            'concurso': c['concurso'],
+            'data': c['data'],
+            'dezenas': dezenas
+        })
+    return pd.DataFrame(registros)
 
-# Chama a função principal
-carregar_todos_concursos()
+# 🔁 EXECUÇÃO
+concursos = carregar_todos_concursos()
+df_concursos = concursos_para_dataframe(concursos)
 
-# Agora a variável concursos_quina contém todos os dados
+print(df_concursos.head())
