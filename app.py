@@ -208,27 +208,26 @@ st.write(resumo)
 
 # ===================== ETAPA 5 =====================
 # ===================== ETAPA 5 =====================
-st.header("🎟️ Geração Inteligente de Cartões")
+st.header("🎲 Gerador Inteligente de Cartões")
 
-st.markdown("Geração baseada nas análises anteriores: frequência, linhas, colunas e faixas numéricas.")
+qtd_cartoes = st.slider("Quantidade de cartões a gerar:", 1, 20, 5)
 
-col1, col2 = st.columns([1, 3])
-with col1:
-    num_cartoes = st.number_input("Quantidade de cartões:", min_value=1, max_value=20, value=5)
-with col2:
-    gerar = st.button("🎲 Gerar Cartões")
-
-if gerar:
-    cartoes = gerar_cartoes_inteligentes(df_padroes, quantidade=num_cartoes)
+if st.button("🧠 Gerar Cartões Inteligentes"):
+    st.subheader("🃏 Cartões Gerados:")
     
-    st.markdown("### 📋 Cartões Gerados")
+    # Ponderar dezenas por frequência
+    freq = calcular_frequencia_global(df_usado)
+    dezenas_ordenadas = sorted(freq.items(), key=lambda x: x[1], reverse=True)
+    top_dezenas = [dez for dez, _ in dezenas_ordenadas[:40]]  # usar top 40 mais frequentes
+
+    cartoes = []
+    for _ in range(qtd_cartoes):
+        cartao = sorted(random.sample(top_dezenas, 5))
+        cartoes.append(cartao)
+
     for i, cartao in enumerate(cartoes, 1):
-        dezenas_formatadas = "  |  ".join(f"{dez:02d}" for dez in sorted(cartao))
-        st.markdown(f"""
-        <div style='padding: 10px; background-color: #f0f2f6; border-radius: 8px; margin-bottom: 8px; font-size: 18px; text-align: center;'>
-            <b>Cartão {i}</b>: 🎯 {dezenas_formatadas}
-        </div>
-        """, unsafe_allow_html=True)
+        dezenas_formatadas = "   ".join(f"{d:02d}" for d in cartao)
+        st.markdown(f"**Cartão {i}:** `{dezenas_formatadas}`")
 
 # ======== RODAPÉ ========
 def rodape():
